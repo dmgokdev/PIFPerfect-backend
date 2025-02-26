@@ -1,0 +1,390 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model auth_log {
+  id         Int           @id @default(autoincrement())
+  user_id    Int
+  type       auth_log_type @default(login)
+  created_at DateTime      @default(now())
+  users      users         @relation(fields: [user_id], references: [id])
+}
+
+model users {
+  id               Int       @id @default(autoincrement())
+  firstName        String
+  lastName         String
+  password         String    @db.Text
+  role             Int
+  companyId        Int?
+  createdBy        Int?
+  createdAt        DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt        DateTime  @default(now()) @db.Timestamp(6)
+  phone            String?   @db.VarChar(255)
+  email            String    @db.VarChar(255)
+  language         String?
+  image            String?
+  region           String?
+  state            String?
+  country          String?
+  city             String?
+  zipCode          Int?
+  address          String?
+  pushNotification Boolean   @default(false)
+  remember_token   String?   @db.Text
+  status           String    @default("ACTIVE") @db.VarChar(100)
+  timezone         String?
+  lastLogin        DateTime?
+  isBlocked        Boolean   @default(false)
+  deleted          Boolean   @default(false)
+
+  companies               companies[]       @relation("CompanyCreator")
+  primaryContactcompanies companies[]       @relation("PrimaryContact")
+  createdMetrics          metrics[]
+  createdProducts         products[]
+  deals                   deals[]
+  dailyMetrics            daily_metrics[]
+  projections             projections[]
+  refunds                 refunds[]
+  otifications            notification[]
+  auth_log                auth_log[]
+  security_log            security_logs[]
+  users_companies         users_companies[]
+  user_meta               user_meta[]
+
+  company companies? @relation("UserCompany", fields: [companyId], references: [id])
+  roles   roles?     @relation(fields: [role], references: [id])
+}
+
+model user_meta {
+  id        Int      @id @default(autoincrement())
+  user_id   Int
+  key       String?  @db.VarChar(255)
+  value     String?  @db.VarChar(255)
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  users     users    @relation(fields: [user_id], references: [id])
+}
+
+model users_companies {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  companyId Int
+  role_id   Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  users     users     @relation(fields: [userId], references: [id])
+  companies companies @relation(fields: [companyId], references: [id])
+  roles     roles     @relation(fields: [role_id], references: [id])
+
+  @@unique([userId, companyId])
+}
+
+model security_logs {
+  id          Int      @id @default(autoincrement())
+  type        String
+  description String
+  location    String?
+  device      String?
+  userId      Int?
+  status      String
+  createdAt   DateTime @default(now()) @db.Timestamp(0)
+  updated_at  DateTime @default(now()) @updatedAt
+
+  users users? @relation(fields: [userId], references: [id])
+}
+
+model companies {
+  id               Int       @id @default(autoincrement())
+  name             String    @db.VarChar(255)
+  industry         Int
+  primaryContactId Int?
+  createdBy        Int
+  joinDate         DateTime  @default(now()) @db.Timestamp(6)
+  logo             String?
+  isTaxable        Boolean   @default(false)
+  country          String?
+  city             String?
+  address          String?
+  currencySymbol   String?
+  deleted          Boolean   @default(false)
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt        DateTime  @default(now()) @db.Timestamp(6)
+
+  creator             users                 @relation("CompanyCreator", fields: [createdBy], references: [id])
+  primaryContact      users?                @relation("PrimaryContact", fields: [primaryContactId], references: [id])
+  industries          industries            @relation(fields: [industry], references: [id])
+  users               users[]               @relation("UserCompany")
+  products            products[]
+  billings            billing[]
+  users_companies     users_companies[]
+  projections         projections[]
+  company_role_labels company_role_labels[]
+  company_metric      company_metric[]
+}
+
+model company_metric {
+  id        Int     @id @default(autoincrement())
+  companyId Int
+  metricId  Int
+  label     String?
+
+  company companies @relation(fields: [companyId], references: [id])
+  metric  metrics   @relation(fields: [metricId], references: [id])
+}
+
+model billing {
+  id            Int      @id @default(autoincrement())
+  companyId     Int
+  paymentDate   DateTime
+  amount        Float
+  paymentMethod String
+  autoRenewal   Boolean  @default(false)
+  status        String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now())
+
+  company companies @relation(fields: [companyId], references: [id])
+}
+
+model daily_metrics {
+  id             Int     @id @default(autoincrement())
+  userId         Int
+  metricId       Int
+  productId      Int?
+  productPrice   Float?
+  availableSlots Int?
+  offers         Int?
+  scheduledCalls Int?
+  callsTaken     Int?
+  reason         String?
+
+  value Float?
+  date  DateTime @default(now())
+
+  deleted   Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  updatedAt DateTime @default(now()) @db.Timestamp(6)
+
+  users    users     @relation(fields: [userId], references: [id])
+  metrics  metrics   @relation(fields: [metricId], references: [id])
+  products products? @relation(fields: [productId], references: [id])
+}
+
+model deals {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  date         DateTime @db.Date
+  totalRevenue Float    @db.Float
+  products     Json
+  deleted      Boolean  @default(false)
+  createdAt    DateTime @default(now()) @db.Timestamp(0)
+  updatedAt    DateTime @default(now()) @db.Timestamp(0)
+
+  users users @relation(fields: [userId], references: [id])
+}
+
+model metrics {
+  id           Int          @id @default(autoincrement())
+  name         String
+  type         metrics_type
+  isCalculated Boolean      @default(false)
+
+  value1Id Int?
+  value1   metrics? @relation("Value1", fields: [value1Id], references: [id])
+  operator String?
+  value2Id Int?
+  value2   metrics? @relation("Value2", fields: [value2Id], references: [id])
+
+  createdBy Int?
+  role      Int
+  roleLabel String?
+  status    String   @default("ACTIVE") @db.VarChar(100)
+  isDefault Boolean  @default(false)
+  deleted   Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  updatedAt DateTime @default(now()) @db.Timestamp(6)
+
+  products       metrics_products[]
+  roles          roles?             @relation(fields: [role], references: [id])
+  users          users?             @relation(fields: [createdBy], references: [id])
+  projections    projections[]
+  dailyMetrics   daily_metrics[]
+  Value1         metrics[]          @relation("Value1")
+  Value2         metrics[]          @relation("Value2")
+  company_metric company_metric[]
+}
+
+model products {
+  id               Int      @id @default(autoincrement())
+  companyId        Int
+  productName      String
+  description      String?  @db.Text
+  image            String?
+  api_key          String?
+  price            Float    @default(0)
+  status           String   @default("ACTIVE") @db.VarChar(100)
+  defaultCashValue Float?   @db.Float
+  createdBy        Int
+  deleted          Boolean  @default(false)
+  createdAt        DateTime @default(now()) @db.Timestamp(6)
+  updatedAt        DateTime @default(now()) @db.Timestamp(6)
+
+  companies     companies          @relation(fields: [companyId], references: [id])
+  users         users?             @relation(fields: [createdBy], references: [id])
+  refunds       refunds[]
+  daily_metrics daily_metrics[]
+  metrics       metrics_products[]
+}
+
+model metrics_products {
+  metricId  Int
+  productId Int
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+
+  metric  metrics  @relation(fields: [metricId], references: [id])
+  product products @relation(fields: [productId], references: [id])
+
+  @@id([metricId, productId])
+}
+
+model projections {
+  id          Int                @id @default(autoincrement())
+  metricId    Int
+  period      projections_period
+  targetValue Float
+  startDate   DateTime           @db.Date
+  endDate     DateTime           @db.Date
+  userId      Int
+  companyId   Int
+  status      String             @default("ACTIVE") @db.VarChar(100)
+  reason      String?
+  deleted     Boolean            @default(false)
+  createdAt   DateTime           @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime           @default(now()) @db.Timestamp(6)
+
+  users     users     @relation(fields: [userId], references: [id])
+  metrics   metrics   @relation(fields: [metricId], references: [id])
+  companies companies @relation(fields: [companyId], references: [id])
+}
+
+model refunds {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  productId   Int
+  date        DateTime @db.Date
+  quantity    Int
+  refundValue Float    @db.Float
+  reason      String?
+  deleted     Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+
+  users    users    @relation(fields: [userId], references: [id])
+  products products @relation(fields: [productId], references: [id])
+}
+
+model notification {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  type       String
+  message    String
+  is_read    Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  user users @relation(fields: [user_id], references: [id])
+}
+
+model industries {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?  @db.Text
+  parent_id   Int?
+  image       String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @default(now()) @updatedAt
+  deleted     Boolean  @default(false)
+
+  parent    industries?  @relation("IndustryHierarchy", fields: [parent_id], references: [id])
+  children  industries[] @relation("IndustryHierarchy")
+  companies companies[]
+}
+
+model roles {
+  id                  Int                   @id @default(autoincrement())
+  name                String                @db.VarChar(20)
+  slug                String?               @unique
+  deleted             Boolean               @default(false)
+  users               users[]
+  role_permissions    role_permissions[]
+  users_companies     users_companies[]
+  metrics             metrics[]
+  company_role_labels company_role_labels[]
+}
+
+model company_role_labels {
+  id         Int      @id @default(autoincrement())
+  companyId  Int
+  roleId     Int
+  label      String   @db.VarChar(50)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  company companies @relation(fields: [companyId], references: [id])
+  role    roles     @relation(fields: [roleId], references: [id])
+}
+
+model permissions {
+  id               Int                @id @default(autoincrement())
+  name             String             @unique
+  slug             String             @unique
+  category         categories?        @relation(fields: [categoryId], references: [id])
+  categoryId       Int?
+  deleted          Boolean            @default(false)
+  createdAt        DateTime           @default(now())
+  role_permissions role_permissions[]
+}
+
+model role_permissions {
+  id            Int         @id @default(autoincrement())
+  role_id       Int
+  permission_id Int
+  deleted       Boolean     @default(false)
+  role          roles       @relation(fields: [role_id], references: [id])
+  permission    permissions @relation(fields: [permission_id], references: [id])
+
+  @@unique([role_id, permission_id])
+}
+
+model categories {
+  id          Int           @id @default(autoincrement())
+  name        String        @unique
+  deleted     Boolean       @default(false)
+  permissions permissions[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+enum projections_period {
+  weekly
+  monthly
+  quarterly
+  yearly
+}
+
+enum metrics_type {
+  NUMBER
+  CURRENCY
+  PERCENTAGE
+}
+
+enum auth_log_type {
+  login
+  logout
+}
